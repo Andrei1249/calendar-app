@@ -1,67 +1,90 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-  <link rel="manifest" href="manifest.webmanifest">
-<script>
-  if ('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./service-worker.js');
-  }
-</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Calendar To-Do</title>
 
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Calendar To-Do</title>
-<style>
-  :root{
-    --bg:#0f1115; --card:#171a21; --muted:#888; --text:#e9edf1;
-    --accent:#4da3ff; /* baby blue */
-    --green:#25c26e;  /* semnează */
-    --red:#ff4d4f;    /* delete */
-    --divider:#212633;
-  }
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
-  .wrap{display:flex;flex-direction:column;height:100svh;max-width:720px;margin:0 auto}
-  header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:5}
-  header h1{font-size:18px;margin:0;font-weight:600}
-  .month-nav{display:flex;gap:8px}
-  .btn{border:1px solid var(--divider);background:transparent;color:var(--text);border-radius:10px;padding:6px 10px;font:inherit}
-  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px 12px}
-  .dow{opacity:.65;font-size:12px;text-align:center}
-  .day{aspect-ratio:1/1;border:1px solid var(--divider);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
-  .day.disabled{opacity:.25;pointer-events:none}
-  .day.today{outline:2px solid var(--accent)}
-  .day.selected{background:var(--card);border-color:var(--accent)}
-  .tasks{flex:1;overflow:auto;padding:8px 12px;display:flex;flex-direction:column;gap:8px}
-  .task{background:var(--card);border:1px solid var(--divider);border-radius:14px;padding:12px;position:relative;overflow:hidden}
-  .task.done{opacity:.6;text-decoration:line-through}
-  .task .meta{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-  .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--divider);color:var(--muted)}
-  .tag.offer{background:rgba(77,163,255,.15);border-color:#387ed6;color:var(--accent)}
-  .tag.sign{background:rgba(37,194,110,.17);border-color:#1ea45a;color:var(--green)}
-  .note{font-size:12px;color:#cbd3df;opacity:.9;margin-top:6px;white-space:pre-wrap}
-  .hint{font-size:12px;color:var(--muted);padding:0 12px 8px}
-  .swipe-actions{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
-  .swipe-left,.swipe-right{display:flex;align-items:center;padding:0 12px;opacity:.0;transition:opacity .12s}
-  .swipe-left{justify-content:flex-start;color:var(--green)}
-  .swipe-right{justify-content:flex-end;color:var(--red)}
-  .task.swiping-left .swipe-left{opacity:.9}
-  .task.swiping-right .swipe-right{opacity:.9}
-  .task.highlight-offer{box-shadow:inset 0 0 0 9999px rgba(77,163,255,.13), 0 0 0 1px rgba(77,163,255,.3)}
-  .task.highlight-sign{box-shadow:inset 0 0 0 9999px rgba(37,194,110,.13), 0 0 0 1px rgba(37,194,110,.35)}
-  .fab{position:fixed;right:16px;bottom:16px;background:var(--accent);color:#08111f;border:none;border-radius:50%;width:56px;height:56px;font-size:30px;line-height:0;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:10}
-  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;z-index:20}
-  .modal{background:var(--card);width:100%;max-width:720px;margin:0 auto;border-top-left-radius:16px;border-top-right-radius:16px;padding:16px;border:1px solid var(--divider)}
-  .modal h3{margin:0 0 8px 0}
-  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
-  .field input,.field textarea{background:#0e121a;border:1px solid var(--divider);border-radius:10px;padding:10px;color:var(--text);font:inherit}
-  .row{display:flex;gap:8px}
-  .chipbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
-  .chip{border:1px solid var(--divider);padding:6px 10px;border-radius:999px;cursor:pointer}
-  .chip[data-val="vrea_oferta"]{border-color:#387ed6;color:var(--accent)}
-  .chip[data-val="semneaza"]{border-color:#1ea45a;color:var(--green)}
-  .danger{color:var(--red)}
-  .empty{opacity:.6;text-align:center;margin-top:16px}
-</style>
+  <!-- PWA (opțional, dacă ai manifest + SW în repo) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <script>
+    if ('serviceWorker' in navigator){
+      navigator.serviceWorker.register('./service-worker.js');
+    }
+  </script>
+
+  <style>
+    :root{
+      --bg:#0f1115; --card:#171a21; --muted:#97a3b6; --text:#e9edf1;
+      --accent:#4da3ff;       /* baby blue – VREA OFERTA */
+      --green:#25c26e;        /* SEMNEAZA */
+      --red:#ff4d4f;          /* delete / close X */
+      --pink:#ff6eb3;         /* NU RASPUNDE */
+      --yellow:#ffd166;       /* DE REVENIT */
+      --divider:#212633;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+    .wrap{display:flex;flex-direction:column;height:100svh;max-width:720px;margin:0 auto}
+
+    header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:5}
+    header h1{font-size:18px;margin:0;font-weight:600}
+    .btn{border:1px solid var(--divider);background:transparent;color:var(--text);border-radius:10px;padding:6px 10px;font:inherit;cursor:pointer}
+
+    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px 12px}
+    .dow{opacity:.65;font-size:12px;text-align:center}
+    .day{aspect-ratio:1/1;border:1px solid var(--divider);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+    .day.today{outline:2px solid var(--accent)}
+    .day.selected{background:var(--card);border-color:var(--accent)}
+
+    .tasks{flex:1;overflow:auto;padding:8px 12px;display:flex;flex-direction:column;gap:8px}
+    .task{background:var(--card);border:1px solid var(--divider);border-radius:14px;padding:12px;position:relative;overflow:hidden}
+    .task.done{opacity:.6;text-decoration:line-through}
+    .task .meta{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+    .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--divider);color:var(--muted);letter-spacing:.3px}
+    .tag.offer{background:rgba(77,163,255,.15);border-color:#387ed6;color:var(--accent)}
+    .tag.sign{background:rgba(37,194,110,.17);border-color:#1ea45a;color:var(--green)}
+    .tag.pink{background:rgba(255,110,179,.18);border-color:#ff6eb3;color:#ff8fc6}
+    .tag.yellow{background:rgba(255,209,102,.18);border-color:#ffd166;color:#ffe08a}
+    .note{font-size:12px;color:#cbd3df;opacity:.9;margin-top:6px;white-space:pre-wrap}
+
+    .swipe-actions{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
+    .swipe-left,.swipe-right{display:flex;align-items:center;padding:0 12px;opacity:.0;transition:opacity .12s}
+    .swipe-left{justify-content:flex-start;color:var(--green)}
+    .swipe-right{justify-content:flex-end;color:var(--red)}
+    .task.swiping-left .swipe-left{opacity:.9}
+    .task.swiping-right .swipe-right{opacity:.9}
+
+    .task.highlight-offer{box-shadow:inset 0 0 0 9999px rgba(77,163,255,.13), 0 0 0 1px rgba(77,163,255,.3)}
+    .task.highlight-sign{box-shadow:inset 0 0 0 9999px rgba(37,194,110,.13), 0 0 0 1px rgba(37,194,110,.35)}
+    .task.highlight-pink{box-shadow:inset 0 0 0 9999px rgba(255,110,179,.12), 0 0 0 1px rgba(255,110,179,.28)}
+    .task.highlight-yellow{box-shadow:inset 0 0 0 9999px rgba(255,209,102,.12), 0 0 0 1px rgba(255,209,102,.28)}
+
+    /* FAB – puțin mai sus și mai în stânga față de margini */
+    .fab{position:fixed;right:26px;bottom:26px;background:var(--accent);color:#08111f;border:none;border-radius:50%;width:56px;height:56px;font-size:30px;line-height:0;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:10;cursor:pointer}
+
+    /* Buton „AZI” – vizibil doar când nu e selectată ziua de azi */
+    .today-btn{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--card);color:var(--text);border:1px solid var(--divider);border-radius:999px;padding:8px 14px;font:inherit;z-index:11;display:none;cursor:pointer}
+
+    /* Modal overlay central (nu bottom-sheet) */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:20}
+    .modal{background:var(--card);width:min(92vw,560px);border-radius:16px;padding:16px;border:1px solid var(--divider);box-shadow:0 10px 40px rgba(0,0,0,.45)}
+    .modal h3{margin:0 0 8px 0;text-align:center}
+    .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+    .field input,.field textarea{background:#0e121a;border:1px solid var(--divider);border-radius:10px;padding:10px;color:var(--text);font:inherit}
+    .row{display:flex;gap:8px;justify-content:center;margin-top:6px}
+    .iconbtn{border:1px solid var(--divider);background:#0e121a;border-radius:12px;padding:10px 14px;font-size:18px;cursor:pointer}
+    .iconbtn.ok{color:#0d3; border-color:#0b4}
+    .iconbtn.close{color:var(--red); border-color:#a33}
+
+    .chipbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;justify-content:center}
+    .chip{border:1px solid var(--divider);padding:8px 12px;border-radius:999px;cursor:pointer;letter-spacing:.4px}
+    .chip[data-val="vrea_oferta"]{border-color:#387ed6;color:var(--accent)}
+    .chip[data-val="semneaza"]{border-color:#1ea45a;color:var(--green)}
+    .chip[data-val="nu_raspunde"]{border-color:#ff6eb3;color:#ff8fc6}
+    .chip[data-val="de_revenit"]{border-color:#ffd166;color:#ffe08a}
+
+    .empty{opacity:.6;text-align:center;margin-top:16px}
+  </style>
 </head>
 <body>
 <div class="wrap">
@@ -72,13 +95,18 @@
   </header>
 
   <div class="calendar" id="calendarGrid"></div>
-  <div class="hint">Swipe dreapta: ✅ făcut &nbsp;•&nbsp; Swipe stânga: 🗑️ șterge &nbsp;•&nbsp; Ține apăsat: tag</div>
+
+  <!-- am scos bara de hint/instrucțiuni -->
 
   <div class="tasks" id="taskList"></div>
+
+  <!-- FAB „+” mutat puțin mai sus și mai în interior -->
   <button class="fab" id="addBtn">＋</button>
+  <!-- Buton „AZI” apare doar dacă nu e selectată ziua curentă -->
+  <button class="today-btn" id="todayBtn">AZI</button>
 </div>
 
-<!-- Modal Add/Edit -->
+<!-- Modal Add/Edit – overlay central -->
 <div class="modal-bg" id="modalAddBg">
   <div class="modal">
     <h3>Task nou</h3>
@@ -91,29 +119,29 @@
       <textarea id="taskNote" rows="3" placeholder="Detalii adiționale..."></textarea>
     </div>
     <div class="row">
-      <button class="btn" id="cancelAdd">Renunță</button>
-      <button class="btn" id="saveAdd">Salvează</button>
+      <button class="iconbtn close" id="cancelAdd">✕</button>
+      <button class="iconbtn ok" id="saveAdd">✓</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Tag (long-press) -->
+<!-- Modal Tag (long-press) – overlay central -->
 <div class="modal-bg" id="modalTagBg">
   <div class="modal">
     <h3>Alege tag</h3>
     <div class="chipbar">
-      <div class="chip" data-val="nu_raspunde">Nu răspunde</div>
-      <div class="chip" data-val="vrea_oferta">Vrea ofertă</div>
-      <div class="chip" data-val="semneaza">Semnează</div>
-      <div class="chip" data-val="de_revenit">De revenit</div>
+      <div class="chip" data-val="nu_raspunde">NU RĂSPUNDE</div>
+      <div class="chip" data-val="vrea_oferta">VREA OFERTĂ</div>
+      <div class="chip" data-val="semneaza">SEMNEAZĂ</div>
+      <div class="chip" data-val="de_revenit">DE REVENIT</div>
     </div>
     <div class="row" style="margin-top:12px">
-      <button class="btn" id="cancelTag">Închide</button>
+      <button class="iconbtn close" id="cancelTag">✕</button>
     </div>
   </div>
 </div>
 
-<!-- Modal pick date for „De revenit” -->
+<!-- Modal pick date pentru „DE REVENIT” – overlay central -->
 <div class="modal-bg" id="modalDateBg">
   <div class="modal">
     <h3>Alege data pentru revenire</h3>
@@ -121,8 +149,8 @@
       <input type="date" id="returnDate">
     </div>
     <div class="row">
-      <button class="btn" id="cancelDate">Renunță</button>
-      <button class="btn" id="saveDate">Ok</button>
+      <button class="iconbtn close" id="cancelDate">✕</button>
+      <button class="iconbtn ok" id="saveDate">✓</button>
     </div>
   </div>
 </div>
@@ -137,15 +165,7 @@ const today = new Date();
 let current = new Date(today.getFullYear(), today.getMonth(), 1);
 let selected = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-/* ===== Storage (localStorage) =====
-schema:
-{
-  "2025-10-27":[
-     {id:"...", title:"", note:"", done:false, tag:null| "nu_raspunde" | "vrea_oferta" | "semneaza" | "de_revenit",
-      movedFrom:"2025-10-27" | null, createdAt:ts }
-  ]
-}
-*/
+/* ===== Storage ===== */
 const loadDay = (key)=> JSON.parse(localStorage.getItem("tasks:"+key) || "[]");
 const saveDay = (key,arr)=> localStorage.setItem("tasks:"+key, JSON.stringify(arr));
 const uuid = ()=> Math.random().toString(36).slice(2)+Date.now().toString(36);
@@ -157,6 +177,7 @@ const taskList = document.getElementById("taskList");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const addBtn  = document.getElementById("addBtn");
+const todayBtn= document.getElementById("todayBtn");
 
 /* Modals */
 const modalAddBg = document.getElementById("modalAddBg");
@@ -171,7 +192,6 @@ const returnDate = document.getElementById("returnDate");
 const cancelDate = document.getElementById("cancelDate");
 const saveDate   = document.getElementById("saveDate");
 
-let longPressTimer = null;
 let longPressTargetId = null;
 
 /* ===== Calendar Render ===== */
@@ -185,32 +205,36 @@ function renderCalendar(){
   const first = new Date(current.getFullYear(),current.getMonth(),1);
   const startIdx = (first.getDay()+6)%7; // Luni=0
   const daysInMonth = new Date(current.getFullYear(), current.getMonth()+1, 0).getDate();
-  // leading blanks
   for(let i=0;i<startIdx;i++){ const filler=document.createElement("div"); calGrid.appendChild(filler); }
-  // days
   for(let d=1; d<=daysInMonth; d++){
     const date = new Date(current.getFullYear(), current.getMonth(), d);
     const el = document.createElement("div");
     el.className = "day";
     el.textContent = d;
-    const k = toKey(date);
     if (toKey(date)===toKey(today)) el.classList.add("today");
     if (toKey(date)===toKey(selected)) el.classList.add("selected");
     el.addEventListener("click", ()=>{ selected = date; renderCalendar(); renderTasks(); });
     calGrid.appendChild(el);
   }
+  // Buton „AZI” – vizibil doar dacă nu e selectată ziua curentă
+  const showTodayBtn = (toKey(selected)!==toKey(today));
+  todayBtn.style.display = showTodayBtn ? "inline-flex" : "none";
 }
 
 /* ===== Tasks Render ===== */
 function pillForTag(tag){
   if(!tag) return "";
   const map = {
-    "nu_raspunde": 'Nu răspunde',
-    "vrea_oferta": 'Vrea ofertă',
-    "semneaza": 'Semnează',
-    "de_revenit": 'De revenit'
+    "nu_raspunde": 'NU RĂSPUNDE',
+    "vrea_oferta": 'VREA OFERTĂ',
+    "semneaza": 'SEMNĂZĂ',
+    "de_revenit": 'DE REVENIT'
   };
-  const cls = tag==="vrea_oferta" ? "tag offer" : tag==="semneaza" ? "tag sign" : "tag";
+  let cls = "tag";
+  if (tag==="vrea_oferta") cls = "tag offer";
+  else if (tag==="semneaza") cls = "tag sign";
+  else if (tag==="nu_raspunde") cls = "tag pink";
+  else if (tag==="de_revenit") cls = "tag yellow";
   return `<span class="${cls}">${map[tag]}</span>`;
 }
 
@@ -228,9 +252,11 @@ function renderTasks(){
     if (t.done) li.classList.add("done");
     if (t.tag==="vrea_oferta") li.classList.add("highlight-offer");
     if (t.tag==="semneaza") li.classList.add("highlight-sign");
+    if (t.tag==="nu_raspunde") li.classList.add("highlight-pink");
+    if (t.tag==="de_revenit") li.classList.add("highlight-yellow");
+
     li.dataset.id = t.id;
 
-    // swipe helpers
     const act = document.createElement("div");
     act.className = "swipe-actions";
     act.innerHTML = `<div class="swipe-left">✓ făcut</div><div class="swipe-right">șterge</div>`;
@@ -238,9 +264,11 @@ function renderTasks(){
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.innerHTML = `${pillForTag(t.tag)} ${ t.movedFrom ? `<span class="tag">mutat de pe ${t.movedFrom}</span>`:"" }`;
+    meta.innerHTML = `${pillForTag(t.tag)} ${ t.movedFrom ? `<span class="tag">MUTAT DE PE ${t.movedFrom}</span>`:"" }`;
+
     const title = document.createElement("div");
     title.textContent = t.title;
+
     const note = document.createElement("div");
     note.className = "note";
     note.textContent = t.note || "";
@@ -254,57 +282,42 @@ function renderTasks(){
   }
 }
 
-/* ===== Gestures: swipe & long-press ===== */
+/* ===== Gestures pe task: swipe & long-press ===== */
 function attachGestures(el, task){
-  let startX=0, currentX=0, swiping=false, dir=null, moved=false, pressTimer=null;
+  let startX=0, startY=0, currentX=0, moved=false, pressTimer=null;
 
-  const onTouchStart=(e)=>{
-    const t = e.touches? e.touches[0] : e;
-    startX = t.clientX; currentX = startX; swiping=false; dir=null; moved=false;
-    // long press (600ms)
-    pressTimer = setTimeout(()=>{
-      longPressTargetId = task.id;
-      openTagModal();
-    }, 600);
+  const onStart=(clientX, clientY)=>{
+    startX=clientX; startY=clientY; moved=false;
+    pressTimer = setTimeout(()=>{ longPressTargetId = task.id; openTagModal(); }, 600);
   };
-
-  const onMove=(e)=>{
-    const t = e.touches? e.touches[0] : e;
-    currentX = t.clientX;
-    const dx = currentX - startX;
-    if (Math.abs(dx) > 10){ swiping = true; moved=true; clearTimeout(pressTimer); }
-    if (swiping){
-      if (dx>0){ dir="right"; el.classList.add("swiping-left"); el.classList.remove("swiping-right"); }
-      else { dir="left"; el.classList.add("swiping-right"); el.classList.remove("swiping-left"); }
+  const onMove=(clientX, clientY)=>{
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    if (Math.hypot(dx,dy) > 10){ moved=true; clearTimeout(pressTimer); }
+    if (moved){
+      if (dx>0){ el.classList.add("swiping-left"); el.classList.remove("swiping-right"); }
+      else { el.classList.add("swiping-right"); el.classList.remove("swiping-left"); }
       el.style.transform = `translateX(${dx}px)`;
     }
   };
-
-  const finalizeSwipe=()=>{
+  const onEnd=()=>{
     clearTimeout(pressTimer);
-    if (!swiping){ // tap – do nothing
-      el.style.transform = ""; el.classList.remove("swiping-left","swiping-right");
-      return;
-    }
-    const dx = currentX - startX;
+    const dx = (currentX - startX);
     const threshold = 80;
-    if (dx > threshold){
-      // mark done toggle
-      toggleDone(task.id);
-    } else if (dx < -threshold){
-      // show delete confirm
-      if (confirm("Ștergi acest task?")) removeTask(task.id);
-    }
-    el.style.transform = ""; el.classList.remove("swiping-left","swiping-right");
+    if (!moved){ el.style.transform=""; el.classList.remove("swiping-left","swiping-right"); return; }
+    if (dx > threshold){ toggleDone(task.id); }
+    else if (dx < -threshold){ if (confirm("Ștergi acest task?")) removeTask(task.id); }
+    el.style.transform=""; el.classList.remove("swiping-left","swiping-right");
   };
 
-  el.addEventListener("touchstart", onTouchStart, {passive:true});
-  el.addEventListener("touchmove", onMove, {passive:true});
-  el.addEventListener("touchend", finalizeSwipe);
-  // mouse support
-  el.addEventListener("mousedown", onTouchStart);
-  el.addEventListener("mousemove", (e)=>{ if(e.buttons===1) onMove(e); });
-  el.addEventListener("mouseup", finalizeSwipe);
+  // touch
+  el.addEventListener("touchstart", e=> onStart(e.touches[0].clientX, e.touches[0].clientY), {passive:true});
+  el.addEventListener("touchmove",  e=> { currentX = e.touches[0].clientX; onMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+  el.addEventListener("touchend", onEnd);
+  // mouse
+  el.addEventListener("mousedown", e=> onStart(e.clientX, e.clientY));
+  el.addEventListener("mousemove", e=>{ if(e.buttons===1){ currentX = e.clientX; onMove(e.clientX, e.clientY);} });
+  el.addEventListener("mouseup", onEnd);
 }
 
 /* ===== CRUD ===== */
@@ -314,7 +327,6 @@ function createTask(key, data){
   saveDay(key, arr);
   renderTasks();
 }
-
 function removeTask(id){
   const key = toKey(selected);
   let arr = loadDay(key);
@@ -322,7 +334,6 @@ function removeTask(id){
   saveDay(key, arr);
   renderTasks();
 }
-
 function toggleDone(id){
   const key = toKey(selected);
   const arr = loadDay(key);
@@ -333,57 +344,50 @@ function toggleDone(id){
   renderTasks();
 }
 
-function updateTagOnTask(dayKey, id, tag, options={}){
+/* ===== Tag logic ===== */
+function updateTagOnTask(dayKey, id, tag){
   const arr = loadDay(dayKey);
   const t = arr.find(x=>x.id===id);
   if(!t) return;
   t.tag = tag;
-  // color effects are handled in render
   saveDay(dayKey, arr);
   renderTasks();
 
-  // business rules
   if (tag==="nu_raspunde"){
-    // move to next day automatically
+    // MUTĂ automat pe ziua următoare
     const srcKey = dayKey;
+    const nextDate = fromKey(srcKey); nextDate.setDate(nextDate.getDate()+1);
+    const nextKey = toKey(nextDate);
+
+    // scoatem din ziua curentă
     const srcArr = loadDay(srcKey);
     const idx = srcArr.findIndex(x=>x.id===id);
-    if(idx>-1){
+    if (idx>-1){
       const [item] = srcArr.splice(idx,1);
-      item.movedFrom = srcKey;
       saveDay(srcKey, srcArr);
-      const d = fromKey(srcKey); d.setDate(d.getDate()+1);
-      const nextKey = toKey(d);
+      item.movedFrom = srcKey;
       const dst = loadDay(nextKey);
       dst.push(item);
       saveDay(nextKey, dst);
-      // if next day is currently selected, re-render there; altfel rămânem
       if (toKey(selected)===nextKey) renderTasks();
-      // mic feedback
       alert(`Mutat automat pe ${nextKey}`);
     }
   }
+
   if (tag==="de_revenit"){
-    // open date picker
+    // deschidem date-picker; mutarea se va face în saveDate()
     longPressTargetId = id;
     openDateModal();
   }
 }
 
 /* ===== Modals ===== */
-function openAddModal(){
-  taskTitle.value=""; taskNote.value=""; modalAddBg.style.display="flex";
-}
+function openAddModal(){ taskTitle.value=""; taskNote.value=""; modalAddBg.style.display="flex"; }
 function closeAddModal(){ modalAddBg.style.display="none"; }
-
 function openTagModal(){ modalTagBg.style.display="flex"; }
 function closeTagModal(){ modalTagBg.style.display="none"; longPressTargetId=null; }
 
-function openDateModal(){
-  // set today as default
-  returnDate.value = toKey(new Date());
-  modalDateBg.style.display="flex";
-}
+function openDateModal(){ returnDate.value = toKey(new Date()); modalDateBg.style.display="flex"; }
 function closeDateModal(){ modalDateBg.style.display="none"; }
 
 /* ===== Handlers ===== */
@@ -399,10 +403,6 @@ saveAdd.onclick = ()=>{
 prevBtn.onclick = ()=>{ current = new Date(current.getFullYear(), current.getMonth()-1, 1); renderCalendar(); };
 nextBtn.onclick = ()=>{ current = new Date(current.getFullYear(), current.getMonth()+1, 1); renderCalendar(); };
 
-modalAddBg.addEventListener("click", (e)=>{ if(e.target===modalAddBg) closeAddModal(); });
-modalTagBg.addEventListener("click", (e)=>{ if(e.target===modalTagBg) closeTagModal(); });
-modalDateBg.addEventListener("click", (e)=>{ if(e.target===modalDateBg) closeDateModal(); });
-
 document.querySelectorAll("#modalTagBg .chip").forEach(ch=>{
   ch.addEventListener("click", ()=>{
     const tag = ch.dataset.val;
@@ -412,7 +412,6 @@ document.querySelectorAll("#modalTagBg .chip").forEach(ch=>{
     closeTagModal();
   });
 });
-
 cancelTag.onclick = closeTagModal;
 
 cancelDate.onclick = closeDateModal;
@@ -421,26 +420,72 @@ saveDate.onclick = ()=>{
   if(!dateStr) return;
   const srcKey = toKey(selected);
   const id = longPressTargetId;
-  // duplicate task on chosen date and stamp movedFrom
-  const arr = loadDay(srcKey);
-  const t = arr.find(x=>x.id===id);
-  if (!t){ closeDateModal(); return; }
-  const clone = {...t, id:uuid(), movedFrom: srcKey};
-  const dst = loadDay(dateStr);
-  dst.push(clone);
-  saveDay(dateStr, dst);
 
-  // also set tag on original as 'de_revenit'
-  updateTagOnTask(srcKey, id, "de_revenit");
+  // MUTĂ (nu duplică) task-ul pe data aleasă și marchează movedFrom
+  const srcArr = loadDay(srcKey);
+  const idx = srcArr.findIndex(x=>x.id===id);
+  if (idx===-1){ closeDateModal(); return; }
+  const [item] = srcArr.splice(idx,1);
+  saveDay(srcKey, srcArr);
+
+  item.movedFrom = srcKey;
+  item.tag = "de_revenit";
+
+  const dstArr = loadDay(dateStr);
+  dstArr.push(item);
+  saveDay(dateStr, dstArr);
+
   closeDateModal();
-  alert(`Creat task de revenit pe ${dateStr}`);
+  alert(`Mutat pe ${dateStr}`);
+
+  // dacă ne aflăm pe ziua destinație – reafișează; altfel rămânem pe ziua curentă
+  if (toKey(selected)===dateStr) renderTasks(); else renderTasks();
 };
 
+/* Buton AZI */
+todayBtn.onclick = ()=>{
+  selected = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  current  = new Date(today.getFullYear(), today.getMonth(), 1);
+  renderCalendar(); renderTasks();
+};
+
+/* ===== Swipe pe CALENDAR pentru schimbare lună ===== */
+(function enableMonthSwipe(){
+  let startX=0,startY=0,endX=0,endY=0,down=false;
+  const threshold=60; // px
+  const maxAngle=25;  // toleranță pe verticală
+
+  const onDown=(x,y)=>{startX=x;startY=y;down=true;};
+  const onMove=(x,y)=>{endX=x;endY=y;};
+  const onUp=()=>{
+    if(!down) return; down=false;
+    const dx=endX-startX, dy=endY-startY;
+    const angle = Math.abs(Math.atan2(dy,dx)*180/Math.PI);
+    if (Math.abs(dx)>threshold && (angle<maxAngle || angle>180-maxAngle)){
+      if (dx<0){ // swipe stânga -> luna următoare
+        nextBtn.click();
+      } else {   // swipe dreapta -> luna anterioară
+        prevBtn.click();
+      }
+    }
+  };
+
+  // aplicăm pe header + calendar (zona de sus)
+  const zone = document.querySelector('header');
+  const zone2= calGrid;
+
+  [zone, zone2].forEach(el=>{
+    el.addEventListener('touchstart', e=>onDown(e.touches[0].clientX,e.touches[0].clientY), {passive:true});
+    el.addEventListener('touchmove',  e=>onMove(e.touches[0].clientX,e.touches[0].clientY), {passive:true});
+    el.addEventListener('touchend', onUp);
+    el.addEventListener('mousedown', e=>onDown(e.clientX,e.clientY));
+    el.addEventListener('mousemove', e=>{ if(e.buttons===1) onMove(e.clientX,e.clientY); });
+    el.addEventListener('mouseup', onUp);
+  });
+})();
+
 /* ===== Init ===== */
-function init(){
-  renderCalendar();
-  renderTasks();
-}
+function init(){ renderCalendar(); renderTasks(); }
 init();
 </script>
 </body>
