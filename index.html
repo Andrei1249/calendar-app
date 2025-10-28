@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Calendar To-Do</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --muted:#888; --text:#e9edf1;
+    --accent:#4da3ff; /* baby blue */
+    --green:#25c26e;  /* semnează */
+    --red:#ff4d4f;    /* delete */
+    --divider:#212633;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{display:flex;flex-direction:column;height:100svh;max-width:720px;margin:0 auto}
+  header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:5}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  .month-nav{display:flex;gap:8px}
+  .btn{border:1px solid var(--divider);background:transparent;color:var(--text);border-radius:10px;padding:6px 10px;font:inherit}
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:10px 12px}
+  .dow{opacity:.65;font-size:12px;text-align:center}
+  .day{aspect-ratio:1/1;border:1px solid var(--divider);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+  .day.disabled{opacity:.25;pointer-events:none}
+  .day.today{outline:2px solid var(--accent)}
+  .day.selected{background:var(--card);border-color:var(--accent)}
+  .tasks{flex:1;overflow:auto;padding:8px 12px;display:flex;flex-direction:column;gap:8px}
+  .task{background:var(--card);border:1px solid var(--divider);border-radius:14px;padding:12px;position:relative;overflow:hidden}
+  .task.done{opacity:.6;text-decoration:line-through}
+  .task .meta{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--divider);color:var(--muted)}
+  .tag.offer{background:rgba(77,163,255,.15);border-color:#387ed6;color:var(--accent)}
+  .tag.sign{background:rgba(37,194,110,.17);border-color:#1ea45a;color:var(--green)}
+  .note{font-size:12px;color:#cbd3df;opacity:.9;margin-top:6px;white-space:pre-wrap}
+  .hint{font-size:12px;color:var(--muted);padding:0 12px 8px}
+  .swipe-actions{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
+  .swipe-left,.swipe-right{display:flex;align-items:center;padding:0 12px;opacity:.0;transition:opacity .12s}
+  .swipe-left{justify-content:flex-start;color:var(--green)}
+  .swipe-right{justify-content:flex-end;color:var(--red)}
+  .task.swiping-left .swipe-left{opacity:.9}
+  .task.swiping-right .swipe-right{opacity:.9}
+  .task.highlight-offer{box-shadow:inset 0 0 0 9999px rgba(77,163,255,.13), 0 0 0 1px rgba(77,163,255,.3)}
+  .task.highlight-sign{box-shadow:inset 0 0 0 9999px rgba(37,194,110,.13), 0 0 0 1px rgba(37,194,110,.35)}
+  .fab{position:fixed;right:16px;bottom:16px;background:var(--accent);color:#08111f;border:none;border-radius:50%;width:56px;height:56px;font-size:30px;line-height:0;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:10}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;z-index:20}
+  .modal{background:var(--card);width:100%;max-width:720px;margin:0 auto;border-top-left-radius:16px;border-top-right-radius:16px;padding:16px;border:1px solid var(--divider)}
+  .modal h3{margin:0 0 8px 0}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .field input,.field textarea{background:#0e121a;border:1px solid var(--divider);border-radius:10px;padding:10px;color:var(--text);font:inherit}
+  .row{display:flex;gap:8px}
+  .chipbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .chip{border:1px solid var(--divider);padding:6px 10px;border-radius:999px;cursor:pointer}
+  .chip[data-val="vrea_oferta"]{border-color:#387ed6;color:var(--accent)}
+  .chip[data-val="semneaza"]{border-color:#1ea45a;color:var(--green)}
+  .danger{color:var(--red)}
+  .empty{opacity:.6;text-align:center;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <button class="btn" id="prevBtn">◀</button>
+    <h1 id="monthLabel">Octombrie 2025</h1>
+    <button class="btn" id="nextBtn">▶</button>
+  </header>
+
+  <div class="calendar" id="calendarGrid"></div>
+  <div class="hint">Swipe dreapta: ✅ făcut &nbsp;•&nbsp; Swipe stânga: 🗑️ șterge &nbsp;•&nbsp; Ține apăsat: tag</div>
+
+  <div class="tasks" id="taskList"></div>
+  <button class="fab" id="addBtn">＋</button>
+</div>
+
+<!-- Modal Add/Edit -->
+<div class="modal-bg" id="modalAddBg">
+  <div class="modal">
+    <h3>Task nou</h3>
+    <div class="field">
+      <label>Titlu</label>
+      <input id="taskTitle" placeholder="Ex: Sun la X pentru ofertă">
+    </div>
+    <div class="field">
+      <label>Notă (opțional)</label>
+      <textarea id="taskNote" rows="3" placeholder="Detalii adiționale..."></textarea>
+    </div>
+    <div class="row">
+      <button class="btn" id="cancelAdd">Renunță</button>
+      <button class="btn" id="saveAdd">Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tag (long-press) -->
+<div class="modal-bg" id="modalTagBg">
+  <div class="modal">
+    <h3>Alege tag</h3>
+    <div class="chipbar">
+      <div class="chip" data-val="nu_raspunde">Nu răspunde</div>
+      <div class="chip" data-val="vrea_oferta">Vrea ofertă</div>
+      <div class="chip" data-val="semneaza">Semnează</div>
+      <div class="chip" data-val="de_revenit">De revenit</div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="cancelTag">Închide</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal pick date for „De revenit” -->
+<div class="modal-bg" id="modalDateBg">
+  <div class="modal">
+    <h3>Alege data pentru revenire</h3>
+    <div class="field">
+      <input type="date" id="returnDate">
+    </div>
+    <div class="row">
+      <button class="btn" id="cancelDate">Renunță</button>
+      <button class="btn" id="saveDate">Ok</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Utils / Date ===== */
+const roMonths = ["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
+const pad = n=>String(n).padStart(2,"0");
+const toKey = (d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromKey = (k)=>{ const [y,m,dd]=k.split("-").map(Number); return new Date(y,m-1,dd); };
+const today = new Date();
+let current = new Date(today.getFullYear(), today.getMonth(), 1);
+let selected = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+/* ===== Storage (localStorage) =====
+schema:
+{
+  "2025-10-27":[
+     {id:"...", title:"", note:"", done:false, tag:null| "nu_raspunde" | "vrea_oferta" | "semneaza" | "de_revenit",
+      movedFrom:"2025-10-27" | null, createdAt:ts }
+  ]
+}
+*/
+const loadDay = (key)=> JSON.parse(localStorage.getItem("tasks:"+key) || "[]");
+const saveDay = (key,arr)=> localStorage.setItem("tasks:"+key, JSON.stringify(arr));
+const uuid = ()=> Math.random().toString(36).slice(2)+Date.now().toString(36);
+
+/* ===== UI Elements ===== */
+const monthLabel = document.getElementById("monthLabel");
+const calGrid = document.getElementById("calendarGrid");
+const taskList = document.getElementById("taskList");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const addBtn  = document.getElementById("addBtn");
+
+/* Modals */
+const modalAddBg = document.getElementById("modalAddBg");
+const modalTagBg = document.getElementById("modalTagBg");
+const modalDateBg= document.getElementById("modalDateBg");
+const taskTitle  = document.getElementById("taskTitle");
+const taskNote   = document.getElementById("taskNote");
+const cancelAdd  = document.getElementById("cancelAdd");
+const saveAdd    = document.getElementById("saveAdd");
+const cancelTag  = document.getElementById("cancelTag");
+const returnDate = document.getElementById("returnDate");
+const cancelDate = document.getElementById("cancelDate");
+const saveDate   = document.getElementById("saveDate");
+
+let longPressTimer = null;
+let longPressTargetId = null;
+
+/* ===== Calendar Render ===== */
+function renderCalendar(){
+  monthLabel.textContent = `${roMonths[current.getMonth()]} ${current.getFullYear()}`;
+  calGrid.innerHTML = "";
+  const dow = ["L","Ma","Mi","J","V","S","D"];
+  dow.forEach(d=>{
+    const el=document.createElement("div"); el.className="dow"; el.textContent=d; calGrid.appendChild(el);
+  });
+  const first = new Date(current.getFullYear(),current.getMonth(),1);
+  const startIdx = (first.getDay()+6)%7; // Luni=0
+  const daysInMonth = new Date(current.getFullYear(), current.getMonth()+1, 0).getDate();
+  // leading blanks
+  for(let i=0;i<startIdx;i++){ const filler=document.createElement("div"); calGrid.appendChild(filler); }
+  // days
+  for(let d=1; d<=daysInMonth; d++){
+    const date = new Date(current.getFullYear(), current.getMonth(), d);
+    const el = document.createElement("div");
+    el.className = "day";
+    el.textContent = d;
+    const k = toKey(date);
+    if (toKey(date)===toKey(today)) el.classList.add("today");
+    if (toKey(date)===toKey(selected)) el.classList.add("selected");
+    el.addEventListener("click", ()=>{ selected = date; renderCalendar(); renderTasks(); });
+    calGrid.appendChild(el);
+  }
+}
+
+/* ===== Tasks Render ===== */
+function pillForTag(tag){
+  if(!tag) return "";
+  const map = {
+    "nu_raspunde": 'Nu răspunde',
+    "vrea_oferta": 'Vrea ofertă',
+    "semneaza": 'Semnează',
+    "de_revenit": 'De revenit'
+  };
+  const cls = tag==="vrea_oferta" ? "tag offer" : tag==="semneaza" ? "tag sign" : "tag";
+  return `<span class="${cls}">${map[tag]}</span>`;
+}
+
+function renderTasks(){
+  taskList.innerHTML = "";
+  const key = toKey(selected);
+  const items = loadDay(key);
+  if(!items.length){
+    taskList.innerHTML = `<div class="empty">N-ai nimic pe ${key}. Apasă ＋ pentru a adăuga.</div>`;
+    return;
+  }
+  for(const t of items){
+    const li = document.createElement("div");
+    li.className = "task";
+    if (t.done) li.classList.add("done");
+    if (t.tag==="vrea_oferta") li.classList.add("highlight-offer");
+    if (t.tag==="semneaza") li.classList.add("highlight-sign");
+    li.dataset.id = t.id;
+
+    // swipe helpers
+    const act = document.createElement("div");
+    act.className = "swipe-actions";
+    act.innerHTML = `<div class="swipe-left">✓ făcut</div><div class="swipe-right">șterge</div>`;
+    li.appendChild(act);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = `${pillForTag(t.tag)} ${ t.movedFrom ? `<span class="tag">mutat de pe ${t.movedFrom}</span>`:"" }`;
+    const title = document.createElement("div");
+    title.textContent = t.title;
+    const note = document.createElement("div");
+    note.className = "note";
+    note.textContent = t.note || "";
+
+    li.appendChild(meta);
+    li.appendChild(title);
+    if (t.note) li.appendChild(note);
+
+    attachGestures(li, t);
+    taskList.appendChild(li);
+  }
+}
+
+/* ===== Gestures: swipe & long-press ===== */
+function attachGestures(el, task){
+  let startX=0, currentX=0, swiping=false, dir=null, moved=false, pressTimer=null;
+
+  const onTouchStart=(e)=>{
+    const t = e.touches? e.touches[0] : e;
+    startX = t.clientX; currentX = startX; swiping=false; dir=null; moved=false;
+    // long press (600ms)
+    pressTimer = setTimeout(()=>{
+      longPressTargetId = task.id;
+      openTagModal();
+    }, 600);
+  };
+
+  const onMove=(e)=>{
+    const t = e.touches? e.touches[0] : e;
+    currentX = t.clientX;
+    const dx = currentX - startX;
+    if (Math.abs(dx) > 10){ swiping = true; moved=true; clearTimeout(pressTimer); }
+    if (swiping){
+      if (dx>0){ dir="right"; el.classList.add("swiping-left"); el.classList.remove("swiping-right"); }
+      else { dir="left"; el.classList.add("swiping-right"); el.classList.remove("swiping-left"); }
+      el.style.transform = `translateX(${dx}px)`;
+    }
+  };
+
+  const finalizeSwipe=()=>{
+    clearTimeout(pressTimer);
+    if (!swiping){ // tap – do nothing
+      el.style.transform = ""; el.classList.remove("swiping-left","swiping-right");
+      return;
+    }
+    const dx = currentX - startX;
+    const threshold = 80;
+    if (dx > threshold){
+      // mark done toggle
+      toggleDone(task.id);
+    } else if (dx < -threshold){
+      // show delete confirm
+      if (confirm("Ștergi acest task?")) removeTask(task.id);
+    }
+    el.style.transform = ""; el.classList.remove("swiping-left","swiping-right");
+  };
+
+  el.addEventListener("touchstart", onTouchStart, {passive:true});
+  el.addEventListener("touchmove", onMove, {passive:true});
+  el.addEventListener("touchend", finalizeSwipe);
+  // mouse support
+  el.addEventListener("mousedown", onTouchStart);
+  el.addEventListener("mousemove", (e)=>{ if(e.buttons===1) onMove(e); });
+  el.addEventListener("mouseup", finalizeSwipe);
+}
+
+/* ===== CRUD ===== */
+function createTask(key, data){
+  const arr = loadDay(key);
+  arr.push({id:uuid(), title:data.title, note:data.note||"", done:false, tag:null, movedFrom:null, createdAt:Date.now()});
+  saveDay(key, arr);
+  renderTasks();
+}
+
+function removeTask(id){
+  const key = toKey(selected);
+  let arr = loadDay(key);
+  arr = arr.filter(x=>x.id!==id);
+  saveDay(key, arr);
+  renderTasks();
+}
+
+function toggleDone(id){
+  const key = toKey(selected);
+  const arr = loadDay(key);
+  const t = arr.find(x=>x.id===id);
+  if (!t) return;
+  t.done = !t.done;
+  saveDay(key, arr);
+  renderTasks();
+}
+
+function updateTagOnTask(dayKey, id, tag, options={}){
+  const arr = loadDay(dayKey);
+  const t = arr.find(x=>x.id===id);
+  if(!t) return;
+  t.tag = tag;
+  // color effects are handled in render
+  saveDay(dayKey, arr);
+  renderTasks();
+
+  // business rules
+  if (tag==="nu_raspunde"){
+    // move to next day automatically
+    const srcKey = dayKey;
+    const srcArr = loadDay(srcKey);
+    const idx = srcArr.findIndex(x=>x.id===id);
+    if(idx>-1){
+      const [item] = srcArr.splice(idx,1);
+      item.movedFrom = srcKey;
+      saveDay(srcKey, srcArr);
+      const d = fromKey(srcKey); d.setDate(d.getDate()+1);
+      const nextKey = toKey(d);
+      const dst = loadDay(nextKey);
+      dst.push(item);
+      saveDay(nextKey, dst);
+      // if next day is currently selected, re-render there; altfel rămânem
+      if (toKey(selected)===nextKey) renderTasks();
+      // mic feedback
+      alert(`Mutat automat pe ${nextKey}`);
+    }
+  }
+  if (tag==="de_revenit"){
+    // open date picker
+    longPressTargetId = id;
+    openDateModal();
+  }
+}
+
+/* ===== Modals ===== */
+function openAddModal(){
+  taskTitle.value=""; taskNote.value=""; modalAddBg.style.display="flex";
+}
+function closeAddModal(){ modalAddBg.style.display="none"; }
+
+function openTagModal(){ modalTagBg.style.display="flex"; }
+function closeTagModal(){ modalTagBg.style.display="none"; longPressTargetId=null; }
+
+function openDateModal(){
+  // set today as default
+  returnDate.value = toKey(new Date());
+  modalDateBg.style.display="flex";
+}
+function closeDateModal(){ modalDateBg.style.display="none"; }
+
+/* ===== Handlers ===== */
+addBtn.onclick = openAddModal;
+cancelAdd.onclick = closeAddModal;
+saveAdd.onclick = ()=>{
+  const title = taskTitle.value.trim();
+  if(!title) return alert("Te rog scrie un titlu.");
+  createTask(toKey(selected), {title, note:taskNote.value.trim()});
+  closeAddModal();
+};
+
+prevBtn.onclick = ()=>{ current = new Date(current.getFullYear(), current.getMonth()-1, 1); renderCalendar(); };
+nextBtn.onclick = ()=>{ current = new Date(current.getFullYear(), current.getMonth()+1, 1); renderCalendar(); };
+
+modalAddBg.addEventListener("click", (e)=>{ if(e.target===modalAddBg) closeAddModal(); });
+modalTagBg.addEventListener("click", (e)=>{ if(e.target===modalTagBg) closeTagModal(); });
+modalDateBg.addEventListener("click", (e)=>{ if(e.target===modalDateBg) closeDateModal(); });
+
+document.querySelectorAll("#modalTagBg .chip").forEach(ch=>{
+  ch.addEventListener("click", ()=>{
+    const tag = ch.dataset.val;
+    const key = toKey(selected);
+    if (!longPressTargetId){ closeTagModal(); return; }
+    updateTagOnTask(key, longPressTargetId, tag);
+    closeTagModal();
+  });
+});
+
+cancelTag.onclick = closeTagModal;
+
+cancelDate.onclick = closeDateModal;
+saveDate.onclick = ()=>{
+  const dateStr = returnDate.value;
+  if(!dateStr) return;
+  const srcKey = toKey(selected);
+  const id = longPressTargetId;
+  // duplicate task on chosen date and stamp movedFrom
+  const arr = loadDay(srcKey);
+  const t = arr.find(x=>x.id===id);
+  if (!t){ closeDateModal(); return; }
+  const clone = {...t, id:uuid(), movedFrom: srcKey};
+  const dst = loadDay(dateStr);
+  dst.push(clone);
+  saveDay(dateStr, dst);
+
+  // also set tag on original as 'de_revenit'
+  updateTagOnTask(srcKey, id, "de_revenit");
+  closeDateModal();
+  alert(`Creat task de revenit pe ${dateStr}`);
+};
+
+/* ===== Init ===== */
+function init(){
+  renderCalendar();
+  renderTasks();
+}
+init();
+</script>
+</body>
+</html>
